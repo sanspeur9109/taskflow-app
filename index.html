@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tailscale Todo App</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -120,6 +119,11 @@
             background: linear-gradient(135deg, var(--primary-blue), var(--primary-indigo));
         }
 
+        .btn-archive {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
         .search-filter {
             display: flex;
             gap: 15px;
@@ -132,46 +136,39 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.1);
-            color: white; /* Default color for dark theme */
+            color: white;
             backdrop-filter: blur(10px);
             flex: 1;
             min-width: 200px;
         }
 
-        /* --- NEW/UPDATED CSS FOR DROPDOWN READABILITY --- */
-        /* Styles for select elements themselves (the displayed value) */
         body:not(.dark) .search-input,
         body:not(.dark) .filter-select,
         body:not(.dark) .sort-select {
-            color: var(--text-dark); /* Dark text for light mode */
-            background: white; /* Solid white background for light mode */
-            border-color: #e2e8f0; /* Clearer border in light mode */
+            color: var(--text-dark);
+            background: white;
+            border-color: #e2e8f0;
         }
 
         body.dark .search-input,
         body.dark .filter-select,
         body.dark .sort-select {
-            color: var(--text-light); /* Light text for dark mode */
-            background: rgba(255, 255, 255, 0.1); /* Translucent background for dark mode */
+            color: var(--text-light);
+            background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.3);
         }
 
-        /* Styles for dropdown options (when the dropdown is open) */
         .filter-select option,
         .sort-select option {
-            /* Default: Dark text on light background */
             background-color: white;
-            color: var(--text-dark); 
+            color: var(--text-dark);
         }
 
-        /* When in dark mode, apply dark theme to options */
         body.dark .filter-select option,
         body.dark .sort-select option {
-            background-color: var(--dark-card); /* Dark background */
-            color: var(--text-light); /* Light text */
+            background-color: var(--dark-card);
+            color: var(--text-light);
         }
-        /* --- END NEW/UPDATED CSS --- */
-
 
         .search-input::placeholder {
             color: rgba(255, 255, 255, 0.7);
@@ -199,7 +196,6 @@
         }
 
         .todo-list .todo-card:hover {
-            transform: none; /* Override grid hover */
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
             border-color: rgba(255, 255, 255, 0.4);
         }
@@ -222,7 +218,7 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            margin-left: 10px; /* Space for priority bar */
+            margin-left: 10px;
         }
 
         .todo-list .todo-title {
@@ -238,7 +234,7 @@
             opacity: 0.8;
             flex-wrap: wrap;
         }
-        
+
         .todo-list .todo-meta .meta-item {
             padding: 3px 6px;
             border-radius: 8px;
@@ -247,19 +243,16 @@
         .todo-list .todo-actions {
             display: flex;
             gap: 5px;
-            margin-left: auto; /* Push actions to the right */
+            margin-left: auto;
             flex-shrink: 0;
         }
-        
+
         .todo-list .action-btn {
             padding: 6px 10px;
             font-size: 11px;
         }
 
-        .todo-list .subtasks {
-            display: none; /* Subtasks hidden in list view for brevity */
-        }
-
+        /* Grid View Styles */
         .todo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -327,6 +320,11 @@
             background: rgba(255, 255, 255, 0.2);
             padding: 4px 8px;
             border-radius: 12px;
+        }
+
+        .overdue {
+            background: var(--error) !important;
+            color: white !important;
         }
 
         .todo-actions {
@@ -503,26 +501,6 @@
             margin-bottom: 15px;
         }
 
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-
-            .controls, .search-filter {
-                flex-direction: column;
-            }
-
-            .todo-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-
         .theme-toggle {
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -546,6 +524,26 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .controls, .search-filter {
+                flex-direction: column;
+            }
+
+            .todo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -563,7 +561,7 @@
         </header>
 
         <div class="progress-section">
-            <h3>Progress Overview</h3>
+            <h3 id="progressTitle">Progress Overview</h3>
             <div class="progress-bar">
                 <div class="progress-fill" id="overallProgress"></div>
             </div>
@@ -592,7 +590,9 @@
             <button class="btn" onclick="openImportModal()">📊 Import Excel</button>
             <button class="btn" onclick="exportToExcel()">📥 Export Excel</button>
             <button class="btn" onclick="syncData()">🔄 Sync Now</button>
-            <button class="btn" id="toggleViewBtn" onclick="toggleView()">Toggle View</button>
+            <button class="btn" id="toggleViewBtn" onclick="toggleView()">Switch to List View</button>
+            <button class="btn" id="archiveToggleBtn" onclick="toggleArchiveView()">Show Archived</button>
+            <button class="btn btn-archive" onclick="archiveCompletedTasks()">📦 Archive Completed</button>
         </div>
 
         <div class="search-filter">
@@ -625,6 +625,7 @@
         <div id="todoDisplayArea"></div>
     </div>
 
+    <!-- Task Modal -->
     <div class="modal" id="taskModal">
         <div class="modal-content">
             <h2 id="modalTitle">Add New Task</h2>
@@ -665,6 +666,7 @@
         </div>
     </div>
 
+    <!-- Import Modal -->
     <div class="modal" id="importModal">
         <div class="modal-content">
             <h2>Import from Excel</h2>
@@ -687,6 +689,7 @@
         </div>
     </div>
 
+    <!-- Tailscale Configuration Modal -->
     <div class="modal" id="tailscaleModal">
         <div class="modal-content">
             <h2>Tailscale Configuration</h2>
@@ -713,6 +716,7 @@
         // Application State
         let appState = {
             tasks: [],
+            archivedTasks: [],
             currentEditId: null,
             tailscaleConfig: {
                 url: '',
@@ -722,23 +726,79 @@
             syncStatus: 'disconnected',
             categories: new Set(),
             darkMode: false,
-            currentView: 'grid', // Restored
-            currentSort: 'createdAtDesc' // Restored
+            currentView: 'grid',
+            currentSort: 'createdAtDesc',
+            showArchived: false
         };
 
-        // Load data from localStorage
+        let syncTimer;
+
+        // Utility Functions
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString();
+            } catch (e) {
+                console.error("Error formatting date:", e);
+                return '';
+            }
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            } catch (e) {
+                console.error("Error formatting datetime:", e);
+                return '';
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            const className = type === 'error' ? 'error-message' : 'success-message';
+            
+            document.querySelectorAll('.error-message, .success-message').forEach(el => el.remove());
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = className;
+            messageEl.textContent = message;
+            
+            const container = document.querySelector('.app-container');
+            if (container) {
+                container.insertBefore(messageEl, document.querySelector('.progress-section'));
+                setTimeout(() => {
+                    messageEl.remove();
+                }, 5000);
+            }
+        }
+
+        // Data Management
         function loadData() {
             try {
-                const saved = JSON.parse(localStorage.getItem('appData')) || {};
+                const saved = JSON.parse(window.localStorage.getItem('todoAppData')) || {};
                 appState.tasks = saved.tasks || [];
+                appState.archivedTasks = saved.archivedTasks || [];
                 appState.tailscaleConfig = saved.tailscaleConfig || appState.tailscaleConfig;
                 appState.darkMode = saved.darkMode || false;
-                appState.currentView = saved.currentView || 'grid'; // Restored
-                appState.currentSort = saved.currentSort || 'createdAtDesc'; // Restored
+                appState.currentView = saved.currentView || 'grid';
+                appState.currentSort = saved.currentSort || 'createdAtDesc';
+                appState.showArchived = saved.showArchived || false;
                 
                 // Populate categories from loaded tasks
                 appState.categories.clear();
-                appState.tasks.forEach(task => {
+                [...appState.tasks, ...appState.archivedTasks].forEach(task => {
                     if (task.category) {
                         appState.categories.add(task.category);
                     }
@@ -749,59 +809,29 @@
                     document.body.classList.add('dark');
                 }
                 
-                updateToggleViewButton(); // Restored
-                // Ensure sort select reflects loaded state, only if the element exists
-                const sortSelect = document.getElementById('sortSelect');
-                if (sortSelect) {
-                    sortSelect.value = appState.currentSort;
-                }
-
-
                 console.log('Data loaded successfully');
             } catch (error) {
-                console.warn('Failed to load data from localStorage:', error);
+                console.warn('Failed to load data:', error);
             }
         }
 
-        // Save data to localStorage
         function saveData() {
             try {
-                localStorage.setItem('appData', JSON.stringify({
+                window.localStorage.setItem('todoAppData', JSON.stringify({
                     tasks: appState.tasks,
+                    archivedTasks: appState.archivedTasks,
                     tailscaleConfig: appState.tailscaleConfig,
                     darkMode: appState.darkMode,
-                    currentView: appState.currentView, // Restored
-                    currentSort: appState.currentSort // Restored
+                    currentView: appState.currentView,
+                    currentSort: appState.currentSort,
+                    showArchived: appState.showArchived
                 }));
                 console.log('Data saved successfully');
             } catch (error) {
-                console.warn('Failed to save data to localStorage:', error);
+                console.warn('Failed to save data:', error);
             }
         }
 
-        // Generate unique ID
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
-
-        // Initialize app
-        function initApp() {
-            loadData();
-            // Load sample data ONLY if no tasks were loaded (i.e., first time use)
-            if (appState.tasks.length === 0) {
-                loadSampleData(); // Restored
-            }
-            updateCategoryFilter();
-            sortAndRenderTasks(); // Use sortAndRenderTasks instead of just renderTasks
-            updateStats();
-            setupEventListeners();
-            
-            if (appState.tailscaleConfig.url) {
-                startTailscaleSync();
-            }
-        }
-
-        // Load sample data
         function loadSampleData() {
             const sampleTasks = [
                 {
@@ -819,18 +849,6 @@
                     ],
                     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
                     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: generateId(),
-                    title: 'Import existing todo list from Excel',
-                    description: 'Use the Excel import feature to migrate existing tasks',
-                    priority: 'medium',
-                    category: 'Migration',
-                    dueDate: '',
-                    completed: false,
-                    subtasks: [],
-                    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
                 },
                 {
                     id: generateId(),
@@ -875,24 +893,9 @@
 
             appState.tasks = sampleTasks;
             appState.categories.add('Setup');
-            appState.categories.add('Migration');
             appState.categories.add('Personal');
             appState.categories.add('Work');
             saveData();
-        }
-
-        // Setup event listeners
-        function setupEventListeners() {
-            const dragArea = document.getElementById('dragDropArea');
-            const fileInput = document.getElementById('excelFile');
-
-            dragArea.addEventListener('click', () => fileInput.click());
-            dragArea.addEventListener('dragover', handleDragOver);
-            dragArea.addEventListener('drop', handleDrop);
-            dragArea.addEventListener('dragleave', handleDragLeave);
-            fileInput.addEventListener('change', handleFileSelect);
-
-            document.getElementById('searchInput').addEventListener('input', filterTasks);
         }
 
         // Task Management Functions
@@ -901,7 +904,8 @@
             const title = document.getElementById('modalTitle');
             
             if (taskId) {
-                const task = appState.tasks.find(t => t.id === taskId);
+                const task = appState.tasks.find(t => t.id === taskId) || 
+                            appState.archivedTasks.find(t => t.id === taskId);
                 if (task) {
                     title.textContent = 'Edit Task';
                     document.getElementById('taskTitle').value = task.title;
@@ -953,17 +957,21 @@
                 dueDate,
                 subtasks,
                 completed: false,
-                createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
 
             if (appState.currentEditId) {
-                const index = appState.tasks.findIndex(t => t.id === appState.currentEditId);
-                if (index !== -1) {
-                    appState.tasks[index] = { ...appState.tasks[index], ...taskData };
+                const activeIndex = appState.tasks.findIndex(t => t.id === appState.currentEditId);
+                const archivedIndex = appState.archivedTasks.findIndex(t => t.id === appState.currentEditId);
+                
+                if (activeIndex !== -1) {
+                    appState.tasks[activeIndex] = { ...appState.tasks[activeIndex], ...taskData };
+                } else if (archivedIndex !== -1) {
+                    appState.archivedTasks[archivedIndex] = { ...appState.archivedTasks[archivedIndex], ...taskData };
                 }
             } else {
                 taskData.id = generateId();
+                taskData.createdAt = new Date().toISOString();
                 appState.tasks.push(taskData);
             }
 
@@ -973,7 +981,7 @@
 
             saveData();
             updateCategoryFilter();
-            sortAndRenderTasks(); // Restored
+            sortAndRenderTasks();
             updateStats();
             closeModal('taskModal');
             showMessage('Task saved successfully!', 'success');
@@ -982,40 +990,108 @@
         function deleteTask(taskId) {
             if (confirm('Are you sure you want to delete this task?')) {
                 appState.tasks = appState.tasks.filter(t => t.id !== taskId);
+                appState.archivedTasks = appState.archivedTasks.filter(t => t.id !== taskId);
                 saveData();
-                sortAndRenderTasks(); // Restored
+                sortAndRenderTasks();
                 updateStats();
                 showMessage('Task deleted successfully!', 'success');
             }
         }
 
         function toggleTask(taskId) {
+            if (appState.showArchived) return;
+            
             const task = appState.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = !task.completed;
                 task.updatedAt = new Date().toISOString();
                 saveData();
-                sortAndRenderTasks(); // Restored
+                sortAndRenderTasks();
                 updateStats();
             }
         }
 
         function toggleSubtask(taskId, subtaskId) {
-            const task = appState.tasks.find(t => t.id === taskId);
+            const task = appState.tasks.find(t => t.id === taskId) || 
+                        appState.archivedTasks.find(t => t.id === taskId);
             if (task && task.subtasks) {
                 const subtask = task.subtasks.find(s => s.id === subtaskId);
                 if (subtask) {
                     subtask.completed = !subtask.completed;
                     task.updatedAt = new Date().toISOString();
                     saveData();
-                    sortAndRenderTasks(); // Restored
+                    sortAndRenderTasks();
                     updateStats();
                 }
             }
         }
 
-        // Sorting Logic
-        function sortTasks(tasks) { // Restored
+        // Archive Functions
+        function archiveTask(taskId) {
+            const taskIndex = appState.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                const task = appState.tasks[taskIndex];
+                task.archivedAt = new Date().toISOString();
+                appState.archivedTasks.push(task);
+                appState.tasks.splice(taskIndex, 1);
+                saveData();
+                sortAndRenderTasks();
+                updateStats();
+                showMessage('Task archived successfully!', 'success');
+            }
+        }
+
+        function unarchiveTask(taskId) {
+            const taskIndex = appState.archivedTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                const task = appState.archivedTasks[taskIndex];
+                delete task.archivedAt;
+                task.updatedAt = new Date().toISOString();
+                appState.tasks.push(task);
+                appState.archivedTasks.splice(taskIndex, 1);
+                saveData();
+                sortAndRenderTasks();
+                updateStats();
+                showMessage('Task unarchived successfully!', 'success');
+            }
+        }
+
+        function archiveCompletedTasks() {
+            const completedTasks = appState.tasks.filter(t => t.completed);
+            if (completedTasks.length === 0) {
+                showMessage('No completed tasks to archive', 'error');
+                return;
+            }
+
+            if (confirm(`Archive ${completedTasks.length} completed task(s)?`)) {
+                completedTasks.forEach(task => {
+                    task.archivedAt = new Date().toISOString();
+                    appState.archivedTasks.push(task);
+                });
+                
+                appState.tasks = appState.tasks.filter(t => !t.completed);
+                saveData();
+                sortAndRenderTasks();
+                updateStats();
+                showMessage(`${completedTasks.length} completed task(s) archived successfully!`, 'success');
+            }
+        }
+
+        function toggleArchiveView() {
+            appState.showArchived = !appState.showArchived;
+            saveData();
+            updateArchiveToggleButton();
+            sortAndRenderTasks();
+            updateStats();
+        }
+
+        function updateArchiveToggleButton() {
+            const button = document.getElementById('archiveToggleBtn');
+            button.textContent = appState.showArchived ? 'Show Active Tasks' : 'Show Archived';
+        }
+
+        // Sorting and Filtering
+        function sortTasks(tasks) {
             const sortCriteria = appState.currentSort;
             const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
 
@@ -1040,116 +1116,15 @@
             return tasks;
         }
 
-        function sortAndRenderTasks() { // Restored
-            appState.currentSort = document.getElementById('sortSelect').value;
-            saveData();
-            renderTasks();
-        }
-
-        // Render functions
-        function renderTasks() {
-            const displayArea = document.getElementById('todoDisplayArea'); // Restored
-            const filteredAndSortedTasks = sortTasks(getFilteredTasks());
-
-            if (filteredAndSortedTasks.length === 0) {
-                displayArea.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; opacity: 0.7;">No tasks found. Add your first task to get started!</div>';
-                return;
-            }
-
-            let html = '';
-            if (appState.currentView === 'grid') { // Restored
-                html = `<div class="todo-grid">`;
-                html += filteredAndSortedTasks.map(task => {
-                    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
-                    const subtaskProgress = task.subtasks && task.subtasks.length > 0 ? 
-                        (task.subtasks.filter(s => s.completed).length / task.subtasks.length) * 100 : 0;
-
-                    return `
-                        <div class="todo-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
-                            <div class="priority-bar priority-${task.priority}"></div>
-                            <div class="todo-header">
-                                <div>
-                                    <div class="todo-title">${escapeHtml(task.title)}</div>
-                                    <div class="todo-meta">
-                                        <span class="meta-item priority-${task.priority}">${task.priority.toUpperCase()}</span>
-                                        ${task.category ? `<span class="meta-item">${escapeHtml(task.category)}</span>` : ''}
-                                        ${task.dueDate ? `<span class="meta-item ${isOverdue ? 'overdue' : ''}">${formatDate(task.dueDate)}</span>` : ''}
-                                        ${isOverdue ? '<span class="meta-item" style="background: var(--error);">OVERDUE</span>' : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            ${task.description ? `<p style="margin-bottom: 15px; opacity: 0.9;">${escapeHtml(task.description)}</p>` : ''}
-                            
-                            ${task.subtasks && task.subtasks.length > 0 ? `
-                                <div class="subtasks">
-                                    <div style="font-size: 12px; margin-bottom: 10px; opacity: 0.8;">
-                                        Subtasks: ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}
-                                        <div class="progress-bar" style="height: 4px; margin-top: 5px;">
-                                            <div class="progress-fill" style="width: ${subtaskProgress}%;"></div>
-                                        </div>
-                                    </div>
-                                    ${task.subtasks.map(subtask => `
-                                        <div class="subtask">
-                                            <input type="checkbox" ${subtask.completed ? 'checked' : ''} 
-                                                   onchange="toggleSubtask('${task.id}', '${subtask.id}')">
-                                            <span style="${subtask.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(subtask.title)}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            
-                            <div class="todo-actions">
-                                <button class="action-btn" onclick="toggleTask('${task.id}')">
-                                    ${task.completed ? '↩️ Undo' : '✅ Complete'}
-                                </button>
-                                <button class="action-btn" onclick="openTaskModal('${task.id}')">✏️ Edit</button>
-                                <button class="action-btn" onclick="deleteTask('${task.id}')">🗑️ Delete</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                html += `</div>`;
-            } else { // List view // Restored
-                html = `<div class="todo-list">`;
-                html += filteredAndSortedTasks.map(task => {
-                    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
-                    return `
-                        <div class="todo-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
-                            <div class="priority-bar priority-${task.priority}"></div>
-                            <div class="todo-content">
-                                <div class="todo-title">${escapeHtml(task.title)}</div>
-                                <div class="todo-meta">
-                                    <span class="meta-item priority-${task.priority}">${task.priority.toUpperCase()}</span>
-                                    ${task.category ? `<span class="meta-item">${escapeHtml(task.category)}</span>` : ''}
-                                    ${task.dueDate ? `<span class="meta-item ${isOverdue ? 'overdue' : ''}">${formatDate(task.dueDate)}</span>` : ''}
-                                    ${isOverdue ? '<span class="meta-item" style="background: var(--error);">OVERDUE</span>' : ''}
-                                    ${task.subtasks && task.subtasks.length > 0 ? `<span class="meta-item">Subtasks: ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}</span>` : ''}
-                                    ${task.description ? `<span class="meta-item">Description: ${escapeHtml(task.description.substring(0, 50))}...</span>` : ''}
-                                </div>
-                            </div>
-                            <div class="todo-actions">
-                                <button class="action-btn" onclick="toggleTask('${task.id}')">
-                                    ${task.completed ? '↩️' : '✅'}
-                                </button>
-                                <button class="action-btn" onclick="openTaskModal('${task.id}')">✏️</button>
-                                <button class="action-btn" onclick="deleteTask('${task.id}')">🗑️</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                html += `</div>`;
-            }
-
-            displayArea.innerHTML = html;
-        }
-
         function getFilteredTasks() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const priorityFilter = document.getElementById('priorityFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             const categoryFilter = document.getElementById('categoryFilter').value;
 
-            return appState.tasks.filter(task => {
+            const tasksToFilter = appState.showArchived ? appState.archivedTasks : appState.tasks;
+
+            return tasksToFilter.filter(task => {
                 const matchesSearch = !search || 
                     task.title.toLowerCase().includes(search) ||
                     (task.description && task.description.toLowerCase().includes(search)) ||
@@ -1171,6 +1146,168 @@
             });
         }
 
+        function filterTasks() {
+            sortAndRenderTasks();
+        }
+
+        function sortAndRenderTasks() {
+            appState.currentSort = document.getElementById('sortSelect').value;
+            saveData();
+            renderTasks();
+        }
+
+        // Rendering
+        function renderTasks() {
+            const displayArea = document.getElementById('todoDisplayArea');
+            const filteredAndSortedTasks = sortTasks(getFilteredTasks());
+
+            if (filteredAndSortedTasks.length === 0) {
+                const emptyMessage = appState.showArchived ? 
+                    'No archived tasks found.' : 
+                    'No tasks found. Add your first task to get started!';
+                displayArea.innerHTML = `<div style="text-align: center; padding: 40px; opacity: 0.7;">${emptyMessage}</div>`;
+                return;
+            }
+
+            let html = '';
+            if (appState.currentView === 'grid') {
+                html = `<div class="todo-grid">`;
+                html += filteredAndSortedTasks.map(task => renderTaskCard(task)).join('');
+                html += `</div>`;
+            } else {
+                html = `<div class="todo-list">`;
+                html += filteredAndSortedTasks.map(task => renderTaskListItem(task)).join('');
+                html += `</div>`;
+            }
+
+            displayArea.innerHTML = html;
+        }
+
+        function renderTaskCard(task) {
+            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
+            const subtaskProgress = task.subtasks && task.subtasks.length > 0 ? 
+                (task.subtasks.filter(s => s.completed).length / task.subtasks.length) * 100 : 0;
+
+            return `
+                <div class="todo-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
+                    <div class="priority-bar priority-${task.priority}"></div>
+                    <div class="todo-header">
+                        <div>
+                            <div class="todo-title">${escapeHtml(task.title)}</div>
+                            <div class="todo-meta">
+                                <span class="meta-item priority-${task.priority}">${task.priority.toUpperCase()}</span>
+                                ${task.category ? `<span class="meta-item">${escapeHtml(task.category)}</span>` : ''}
+                                ${task.dueDate ? `<span class="meta-item ${isOverdue ? 'overdue' : ''}">${formatDate(task.dueDate)}</span>` : ''}
+                                ${isOverdue ? '<span class="meta-item overdue">OVERDUE</span>' : ''}
+                                ${appState.showArchived ? '<span class="meta-item" style="background: rgba(100, 100, 100, 0.5);">ARCHIVED</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${task.description ? `<p style="margin-bottom: 15px; opacity: 0.9;">${escapeHtml(task.description)}</p>` : ''}
+                    
+                    ${task.subtasks && task.subtasks.length > 0 ? `
+                        <div class="subtasks">
+                            <div style="font-size: 12px; margin-bottom: 10px; opacity: 0.8;">
+                                Subtasks: ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}
+                                <div class="progress-bar" style="height: 4px; margin-top: 5px;">
+                                    <div class="progress-fill" style="width: ${subtaskProgress}%;"></div>
+                                </div>
+                            </div>
+                            ${task.subtasks.map(subtask => `
+                                <div class="subtask">
+                                    <input type="checkbox" ${subtask.completed ? 'checked' : ''} 
+                                           onchange="toggleSubtask('${task.id}', '${subtask.id}')">
+                                    <span style="${subtask.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(subtask.title)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="todo-actions">
+                        ${appState.showArchived ? `
+                            <button class="action-btn" onclick="unarchiveTask('${task.id}')" style="background: rgba(16, 185, 129, 0.3);">📤 Unarchive</button>
+                        ` : `
+                            <button class="action-btn" onclick="toggleTask('${task.id}')">
+                                ${task.completed ? '↩️ Undo' : '✅ Complete'}
+                            </button>
+                            <button class="action-btn" onclick="archiveTask('${task.id}')" style="background: rgba(100, 100, 100, 0.3);">📦 Archive</button>
+                        `}
+                        <button class="action-btn" onclick="openTaskModal('${task.id}')">✏️ Edit</button>
+                        <button class="action-btn" onclick="deleteTask('${task.id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTaskListItem(task) {
+            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
+
+            return `
+                <div class="todo-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
+                    <div class="priority-bar priority-${task.priority}"></div>
+                    <div class="todo-content">
+                        <div class="todo-title">${escapeHtml(task.title)}</div>
+                        <div class="todo-meta">
+                            <span class="meta-item priority-${task.priority}">${task.priority.toUpperCase()}</span>
+                            ${task.category ? `<span class="meta-item">${escapeHtml(task.category)}</span>` : ''}
+                            ${task.dueDate ? `<span class="meta-item ${isOverdue ? 'overdue' : ''}">${formatDate(task.dueDate)}</span>` : ''}
+                            ${isOverdue ? '<span class="meta-item overdue">OVERDUE</span>' : ''}
+                            ${task.subtasks && task.subtasks.length > 0 ? `<span class="meta-item">Subtasks: ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}</span>` : ''}
+                            ${task.description ? `<span class="meta-item">Description: ${escapeHtml(task.description.substring(0, 50))}...</span>` : ''}
+                            ${appState.showArchived ? '<span class="meta-item" style="background: rgba(100, 100, 100, 0.5);">ARCHIVED</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="todo-actions">
+                        ${appState.showArchived ? `
+                            <button class="action-btn" onclick="unarchiveTask('${task.id}')" style="background: rgba(16, 185, 129, 0.3);">📤</button>
+                        ` : `
+                            <button class="action-btn" onclick="toggleTask('${task.id}')">
+                                ${task.completed ? '↩️' : '✅'}
+                            </button>
+                            <button class="action-btn" onclick="archiveTask('${task.id}')" style="background: rgba(100, 100, 100, 0.3);">📦</button>
+                        `}
+                        <button class="action-btn" onclick="openTaskModal('${task.id}')">✏️</button>
+                        <button class="action-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Statistics and UI Updates
+        function updateStats() {
+            let activeTasks, archivedCount;
+            
+            if (appState.showArchived) {
+                activeTasks = appState.archivedTasks;
+                archivedCount = activeTasks.length;
+            } else {
+                activeTasks = appState.tasks;
+                archivedCount = appState.archivedTasks.length;
+            }
+            
+            const total = activeTasks.length;
+            const completed = activeTasks.filter(t => t.completed).length;
+            const pending = total - completed;
+            const overdue = activeTasks.filter(t => 
+                t.dueDate && new Date(t.dueDate) < new Date() && !t.completed
+            ).length;
+
+            document.getElementById('totalTasks').textContent = total;
+            document.getElementById('completedTasks').textContent = completed;
+            document.getElementById('pendingTasks').textContent = pending;
+            document.getElementById('overdueTasks').textContent = overdue;
+
+            const progress = total > 0 ? (completed / total) * 100 : 0;
+            document.getElementById('overallProgress').style.width = `${progress}%`;
+            
+            const statsTitle = document.getElementById('progressTitle');
+            if (statsTitle) {
+                statsTitle.textContent = appState.showArchived ? 
+                    `Archived Tasks Overview (${archivedCount} archived)` : 
+                    `Progress Overview (${archivedCount} archived)`;
+            }
+        }
+
         function updateCategoryFilter() {
             const select = document.getElementById('categoryFilter');
             const currentValue = select.value;
@@ -1186,21 +1323,31 @@
             select.value = currentValue;
         }
 
-        function updateStats() {
-            const total = appState.tasks.length;
-            const completed = appState.tasks.filter(t => t.completed).length;
-            const pending = total - completed;
-            const overdue = appState.tasks.filter(t => 
-                t.dueDate && new Date(t.dueDate) < new Date() && !t.completed
-            ).length;
+        // View Management
+        function toggleView() {
+            appState.currentView = appState.currentView === 'grid' ? 'list' : 'grid';
+            saveData();
+            updateToggleViewButton();
+            renderTasks();
+        }
 
-            document.getElementById('totalTasks').textContent = total;
-            document.getElementById('completedTasks').textContent = completed;
-            document.getElementById('pendingTasks').textContent = pending;
-            document.getElementById('overdueTasks').textContent = overdue;
+        function updateToggleViewButton() {
+            const button = document.getElementById('toggleViewBtn');
+            button.textContent = appState.currentView === 'grid' ? 'Switch to List View' : 'Switch to Grid View';
+        }
 
-            const progress = total > 0 ? (completed / total) * 100 : 0;
-            document.getElementById('overallProgress').style.width = `${progress}%`;
+        function toggleTheme() {
+            appState.darkMode = !appState.darkMode;
+            document.body.classList.toggle('dark', appState.darkMode);
+            saveData();
+            
+            const button = document.querySelector('.theme-toggle');
+            button.textContent = appState.darkMode ? '☀️' : '🌙';
+        }
+
+        // Modal Management
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
         }
 
         // Excel Import/Export Functions
@@ -1291,9 +1438,9 @@
                 }
 
                 return task;
-            }).filter(task => task.title.trim()); // Filter out tasks with empty titles
+            }).filter(task => task.title.trim());
 
-            window.importPreviewData = parsedTasks; // Store for confirmation
+            window.importPreviewData = parsedTasks;
 
             content.innerHTML = `
                 <div class="success-message">
@@ -1351,7 +1498,6 @@
             if (!value) return '';
             try {
                 const date = new Date(value);
-                // Check for valid date to prevent 'Invalid Date' issues
                 if (isNaN(date.getTime())) {
                     return ''; 
                 }
@@ -1379,11 +1525,11 @@
 
                 saveData();
                 updateCategoryFilter();
-                sortAndRenderTasks(); // Restored
+                sortAndRenderTasks();
                 updateStats();
                 closeModal('importModal');
                 showMessage(`Successfully imported ${window.importPreviewData.length} tasks!`, 'success');
-                window.importPreviewData = null; // Clear preview data
+                window.importPreviewData = null;
             }
         }
 
@@ -1393,12 +1539,14 @@
         }
 
         function exportToExcel() {
-            if (appState.tasks.length === 0) {
+            const tasksToExport = appState.showArchived ? appState.archivedTasks : appState.tasks;
+            
+            if (tasksToExport.length === 0) {
                 showMessage('No tasks to export', 'error');
                 return;
             }
 
-            const exportData = appState.tasks.map(task => ({
+            const exportData = tasksToExport.map(task => ({
                 Title: task.title,
                 Description: task.description || '',
                 Priority: task.priority,
@@ -1407,14 +1555,17 @@
                 Completed: task.completed ? 'Yes' : 'No',
                 Subtasks: task.subtasks ? task.subtasks.map(s => s.title).join('; ') : '',
                 'Created At': formatDateTime(task.createdAt),
-                'Updated At': formatDateTime(task.updatedAt)
+                'Updated At': formatDateTime(task.updatedAt),
+                'Archived At': task.archivedAt ? formatDateTime(task.archivedAt) : ''
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(exportData);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Tasks');
+            const sheetName = appState.showArchived ? 'Archived Tasks' : 'Active Tasks';
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-            const fileName = `todo-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+            const filePrefix = appState.showArchived ? 'archived-tasks' : 'todo-export';
+            const fileName = `${filePrefix}-${new Date().toISOString().split('T')[0]}.xlsx`;
             XLSX.writeFile(workbook, fileName);
             
             showMessage('Tasks exported successfully!', 'success');
@@ -1452,16 +1603,13 @@
             showMessage('Tailscale configuration saved!', 'success');
         }
 
-        let syncTimer; // To hold the interval ID for recurring sync
-
         function startTailscaleSync() {
             if (syncTimer) {
-                clearInterval(syncTimer); // Clear any existing timer
+                clearInterval(syncTimer);
             }
 
             updateSyncStatus('connecting');
             
-            // Simulate connection delay for UI feedback
             setTimeout(() => {
                 updateSyncStatus('connected');
                 
@@ -1483,11 +1631,6 @@
             updateSyncStatus('syncing');
             console.log('Attempting to sync data with Tailscale node:', appState.tailscaleConfig.url);
 
-            // Placeholder for actual Tailscale API communication
-            // In a real application, you would use fetch() or XMLHttpRequest
-            // to send data to your Tailscale node and receive updates.
-            // This would involve handling authentication (using appState.tailscaleConfig.key)
-            // and data merging logic.
             simulateTailscaleSync()
                 .then(() => {
                     updateSyncStatus('connected');
@@ -1500,23 +1643,16 @@
                 });
         }
 
-        /**
-         * Placeholder function to simulate Tailscale API communication.
-         * In a real app, this would involve network requests.
-         * @returns {Promise<void>} A promise that resolves on simulated success or rejects on simulated error.
-         */
         function simulateTailscaleSync() {
             return new Promise((resolve, reject) => {
-                const isSuccess = Math.random() > 0.1; // 90% chance of success
+                const isSuccess = Math.random() > 0.1;
                 setTimeout(() => {
                     if (isSuccess) {
-                        // In a real scenario, you'd process incoming data here
-                        // For now, we just simulate success.
                         resolve();
                     } else {
                         reject(new Error('Simulated network or API error.'));
                     }
-                }, 1500); // Simulate network latency
+                }, 1500);
             });
         }
 
@@ -1538,84 +1674,54 @@
             text.textContent = statusTexts[status] || 'Unknown';
         }
 
-        // Utility Functions
-        function filterTasks() {
-            sortAndRenderTasks(); // Call sortAndRenderTasks here to re-filter and re-sort
+        // Event Listeners Setup
+        function setupEventListeners() {
+            const dragArea = document.getElementById('dragDropArea');
+            const fileInput = document.getElementById('excelFile');
+
+            dragArea.addEventListener('click', () => fileInput.click());
+            dragArea.addEventListener('dragover', handleDragOver);
+            dragArea.addEventListener('drop', handleDrop);
+            dragArea.addEventListener('dragleave', handleDragLeave);
+            fileInput.addEventListener('change', handleFileSelect);
+
+            document.getElementById('searchInput').addEventListener('input', filterTasks);
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
-
-        function toggleTheme() {
-            appState.darkMode = !appState.darkMode;
-            document.body.classList.toggle('dark', appState.darkMode);
-            saveData();
+        // Application Initialization
+        function initApp() {
+            loadData();
             
-            const button = document.querySelector('.theme-toggle');
-            button.textContent = appState.darkMode ? '☀️' : '🌙';
-        }
-
-        // View Toggle Functions
-        function toggleView() { // Restored
-            appState.currentView = appState.currentView === 'grid' ? 'list' : 'grid';
-            saveData();
+            // Load sample data only if no tasks exist
+            if (appState.tasks.length === 0 && appState.archivedTasks.length === 0) {
+                loadSampleData();
+            }
+            
+            updateCategoryFilter();
             updateToggleViewButton();
-            renderTasks();
-        }
-
-        function updateToggleViewButton() { // Restored
-            const button = document.getElementById('toggleViewBtn');
-            button.textContent = appState.currentView === 'grid' ? 'Switch to List View' : 'Switch to Grid View';
-        }
-
-        function showMessage(message, type = 'info') {
-            const className = type === 'error' ? 'error-message' : 'success-message';
+            updateArchiveToggleButton();
             
-            document.querySelectorAll('.error-message, .success-message').forEach(el => el.remove());
+            // Set initial sort value
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.value = appState.currentSort;
+            }
             
-            const messageEl = document.createElement('div');
-            messageEl.className = className;
-            messageEl.textContent = message;
+            sortAndRenderTasks();
+            updateStats();
+            setupEventListeners();
             
-            const container = document.querySelector('.app-container');
-            if (container) {
-                container.insertBefore(messageEl, document.querySelector('.progress-section'));
-                setTimeout(() => {
-                    messageEl.remove();
-                }, 5000);
+            // Apply theme
+            const themeButton = document.querySelector('.theme-toggle');
+            themeButton.textContent = appState.darkMode ? '☀️' : '🌙';
+            
+            // Start Tailscale sync if configured
+            if (appState.tailscaleConfig.url) {
+                startTailscaleSync();
             }
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString();
-            } catch (e) {
-                console.error("Error formatting date:", e);
-                return '';
-            }
-        }
-
-        function formatDateTime(dateString) {
-            if (!dateString) return '';
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleString();
-            } catch (e) {
-                console.error("Error formatting datetime:", e);
-                return '';
-            }
-        }
-
-        // Initialize the application
+        // Initialize the application when DOM is ready
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
